@@ -2,8 +2,8 @@
 #include <WiFiUdp.h>
 #include <Adafruit_NeoPixel.h>
 
-const char* ssid      = "i cant commit this shit to github";
-const char* password  = "nad especially not this shit";
+const char* ssid      = "nope";
+const char* password  = "also nope";
 
 const int ARTNET_PORT    = 6454;
 const int MAX_BUFFER     = 530;
@@ -11,6 +11,8 @@ const int MAX_BUFFER     = 530;
 const int LED_PIN        = 14;
 const int NUM_LEDS       = 150;       
 const int START_UNIVERSE = 0;
+
+const int START_VAL = 0; //
 
 
 #define ARTNET_OPDMX 0x5000
@@ -25,7 +27,7 @@ Adafruit_NeoPixel leds(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 bool universesReceived[2] = {false};  // boolean status array to track - initialized at false
 unsigned long lastFrameTime = 0;       //track when the previous frame was recieve - initialized at 0
-const int FRAME_TIMEOUT_MS = 100;    
+const int FRAME_TIMEOUT_MS = 1000;    
 
 bool connectWifi() {
   WiFi.begin(ssid, password);
@@ -82,22 +84,30 @@ void handleArtDmx(uint8_t* buf, int len) {
   Serial.printf("  Got universe %d (%d/%d)\n", universe, relativeUniverse + 1, NUM_UNIVERSES);
 
   int startLed = relativeUniverse * 170; //whic led does this univesrse start with
-
-  for (int i = 0; i + 2 < (int)dmxLen; i += 3) {
+  Serial.print("startled");
+  Serial.println(startLed);
+  for (int i = startLed; i + 2 < ((int)(dmxLen)); i += 18) {
     int ledIndex = startLed + (i / 3);// always an int becuase incremented in fractions of 3
+     Serial.print("ledindex");
+     Serial.println(ledIndex);
     if (ledIndex >= NUM_LEDS) break;
-    leds.setPixelColor(ledIndex, dmx[i], dmx[i + 1], dmx[i + 2]);
+    for (int j = 0; j < 6; j++){
+       Serial.print("ledindex + j");
+      Serial.println(ledIndex+j);
+       leds.setPixelColor(ledIndex+j, dmx[START_VAL + (i/6)], dmx[START_VAL + (i/6) + 1], dmx[START_VAL + (i/6) + 2]);
+    } 
   }
+  Serial.println("reached end of loop");
 
   // update recieve status of the unievrse
   universesReceived[relativeUniverse] = true;
   lastFrameTime = millis();
 
   // make sure both universes recieved or else its fractured data
-  if (allUniversesReceived()) {
+  //if (allUniversesReceived()) {
     leds.show();
     memset(universesReceived, 0, sizeof(universesReceived));  // reset for next frame
-  }
+//  }
 }
 
 void parseArtNet(uint8_t* buf, int len) {
