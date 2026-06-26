@@ -2,15 +2,18 @@
 #include <WiFiUdp.h>
 #include <Adafruit_NeoPixel.h>
 
-const char* ssid      = "nope";
-const char* password  = "also nope";
+const char* ssid      = "jinx wtf";
+const char* password  = "jinx wtf";
 
 const int ARTNET_PORT    = 6454;
 const int MAX_BUFFER     = 530;
 
 const int LED_PIN        = 14;
-const int NUM_LEDS       = 150;       
+const int NUM_LEDS       = 600;       
 const int START_UNIVERSE = 0;
+const int MAX_INDEX = 512;
+
+const uint8_t XFERED = 2; //how many leds are combined into one
 
 const int START_VAL = 0; //
 
@@ -50,7 +53,9 @@ void initTest() {
     leds.Color(127, 0, 0),
     leds.Color(0, 127, 0),
     leds.Color(0, 0, 127),
-    leds.Color(0, 0, 0)
+    leds.Color(0, 0, 0),
+    leds.Color(255, 255, 255)
+    
   };
   for (uint32_t c : colors) {
     for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, c);
@@ -90,7 +95,7 @@ void handleArtDmx(uint8_t* buf, int len) {
     int ledIndex = startLed + (i / 3);// always an int becuase incremented in fractions of 3
      Serial.print("ledindex");
      Serial.println(ledIndex);
-    if (ledIndex >= NUM_LEDS) break;
+    if (ledIndex >= MAX_INDEX) break;
     for (int j = 0; j < 6; j++){
        Serial.print("ledindex + j");
       Serial.println(ledIndex+j);
@@ -142,9 +147,9 @@ void loop() {
   if (packetSize) {
     int len = udp.read(packetBuffer, MAX_BUFFER);
     parseArtNet(packetBuffer, len);
-    lastFrameTime = millis(); // upd last packet r ecieve status
+    lastFrameTime = millis(); // upd last packet recieve status
   }
-  // tineout for dropped universes
+  // timeout for dropped universes
   bool anyReceived = false; // reset
   for (int i = 0; i < NUM_UNIVERSES; i++) {
     if (universesReceived[i]) { anyReceived = true; break; }

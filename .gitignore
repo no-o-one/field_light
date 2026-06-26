@@ -1,0 +1,8 @@
+#mac sys files
+*.DS_Store
+#vim temp files
+*.swp
+*.swo
+*.swn
+#build directories
+build/
