@@ -5,16 +5,17 @@
 const char* ssid      = "jinx wtf";
 const char* password  = "jinx wtf";
 
+
 const int ARTNET_PORT    = 6454;
 const int MAX_BUFFER     = 530;
 
 const int LED_PIN        = 14;
-const int NUM_LEDS       = 600;       
+const int NUM_LEDS       = 300;       
 const int START_UNIVERSE = 0;
-const int MAX_INDEX = 512;
+const int MAX_INDEX = 1024;
 
-const uint8_t XFERED = 2; //how many leds are combined into one
-
+uint8_t XFERED = 4; //how many leds are combined into one (how many pixels per channel)
+uint8_t ADDR_SPACE = 3; //how many address each channel takes up
 const int START_VAL = 0; //
 
 
@@ -50,9 +51,9 @@ bool connectWifi() {
 
 void initTest() {
   uint32_t colors[] = {
-    leds.Color(127, 0, 0),
-    leds.Color(0, 127, 0),
-    leds.Color(0, 0, 127),
+    leds.Color(255, 0, 0),
+    leds.Color(0, 255, 0),
+    leds.Color(0, 0, 255),
     leds.Color(0, 0, 0),
     leds.Color(255, 255, 255)
     
@@ -82,27 +83,27 @@ void handleArtDmx(uint8_t* buf, int len) {
   int relativeUniverse = universe - START_UNIVERSE;
 
   if (relativeUniverse < 0 || relativeUniverse >= NUM_UNIVERSES) {
-    Serial.printf("  universe %d out of range\n", universe);
+    //Serial.printf("  universe %d out of range\n", universe);
     return;
   }
 
-  Serial.printf("  Got universe %d (%d/%d)\n", universe, relativeUniverse + 1, NUM_UNIVERSES);
+  //Serial.printf("  Got universe %d (%d/%d)\n", universe, relativeUniverse + 1, NUM_UNIVERSES);
 
-  int startLed = relativeUniverse * 170; //whic led does this univesrse start with
-  Serial.print("startled");
-  Serial.println(startLed);
-  for (int i = startLed; i + 2 < ((int)(dmxLen)); i += 18) {
-    int ledIndex = startLed + (i / 3);// always an int becuase incremented in fractions of 3
-     Serial.print("ledindex");
-     Serial.println(ledIndex);
+  int startLed = relativeUniverse; //whic led does this univesrse start with
+  // Serial.print("startled");
+  // Serial.println(startLed);
+  for (int i = startLed; i + 2 < ((int)(dmxLen)); i += (ADDR_SPACE * XFERED)) {
+    int ledIndex = startLed + (i / ADDR_SPACE);// always an int becuase incremented in fractions of 3
+    // Serial.print("ledindex");
+    // Serial.println(ledIndex);
     if (ledIndex >= MAX_INDEX) break;
-    for (int j = 0; j < 6; j++){
-       Serial.print("ledindex + j");
-      Serial.println(ledIndex+j);
-       leds.setPixelColor(ledIndex+j, dmx[START_VAL + (i/6)], dmx[START_VAL + (i/6) + 1], dmx[START_VAL + (i/6) + 2]);
-    } 
+    for (int j = 0; j < XFERED; j++){
+      // Serial.print("ledindex + j");
+      // Serial.println(ledIndex+j);
+      leds.setPixelColor(ledIndex+j, dmx[START_VAL + (i/XFERED)], dmx[START_VAL + (i/XFERED) + 1], dmx[START_VAL + (i/XFERED) + 2]);
+    }
   }
-  Serial.println("reached end of loop");
+  // Serial.println("reached end of loop");
 
   // update recieve status of the unievrse
   universesReceived[relativeUniverse] = true;
@@ -111,7 +112,7 @@ void handleArtDmx(uint8_t* buf, int len) {
   // make sure both universes recieved or else its fractured data
   //if (allUniversesReceived()) {
     leds.show();
-    memset(universesReceived, 0, sizeof(universesReceived));  // reset for next frame
+    //memset(universesReceived, 0, sizeof(universesReceived));  // reset for next frame
 //  }
 }
 
@@ -145,9 +146,12 @@ void setup() {
 void loop() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
+    // Serial.print("Received packet of size ");
+    // Serial.println(packetSize);
     int len = udp.read(packetBuffer, MAX_BUFFER);
     parseArtNet(packetBuffer, len);
     lastFrameTime = millis(); // upd last packet recieve status
+    udp.begin(ARTNET_PORT);
   }
   // timeout for dropped universes
   bool anyReceived = false; // reset
@@ -156,7 +160,7 @@ void loop() {
   }
 
   if (anyReceived && (millis() - lastFrameTime > FRAME_TIMEOUT_MS)) {
-    Serial.println("timeout this is a fractured frame");
+    // Serial.println("timeout this is a fractured frame");
     leds.show();
     memset(universesReceived, 0, sizeof(universesReceived));
   }

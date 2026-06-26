@@ -2,7 +2,7 @@ import socket
 import struct
 import time
 
-ARTNET_IP = "255.255.255.255"  # broadcast
+ARTNET_IP = "192.168.1.255"  # broadcast
 ARTNET_PORT = 6454 # < defautl for artnet
 UNIVERSE = 0
 
@@ -20,11 +20,18 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 sock.bind(("", 0))
 
-dmx_data = bytes([20,20,0] * 295)  
+dmx_data = bytes([150,0,150] * 295)  
 
 
 while True:
+    dmx_data = bytes([150,0,150] * 295)  
     packet = make_artnet_packet(UNIVERSE, dmx_data)
     sock.sendto(packet, (ARTNET_IP, ARTNET_PORT))
     print("packet sent")
-    time.sleep(0.1)
+    time.sleep(0.5)
+
+    dmx_data = bytes([0,0,150] * 295)  
+    packet = make_artnet_packet(UNIVERSE, dmx_data)
+    sock.sendto(packet, (ARTNET_IP, ARTNET_PORT))
+    print("packet sent")
+    time.sleep(0.5)
