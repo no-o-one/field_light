@@ -6,3 +6,5 @@
 *.swn
 #build directories
 build/
+#secrets
+*secrets.h

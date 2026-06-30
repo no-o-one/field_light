@@ -1,10 +1,10 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Adafruit_NeoPixel.h>
+#include <password_secrets.h>
 
-
-const char* ssid      = "jinx wtf";
-const char* password  = "jinx wtf";
+const char* ssid      = secret_ssid;
+const char* password  = secret_password;
 
 
 const int ARTNET_PORT    = 6454;
