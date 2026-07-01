@@ -7,13 +7,19 @@
 #include <OSCMessage.h>
 #include <OSCBundle.h>
 #include <OSCData.h>
+#include <Adafruit_NeoPixel.h>
+#include <stdlib.h>
+
 
 //core 0 - wifi ans sys stuff
 //core 1 - appcore
 
-char ssid[] = "later";        
-char pass[] = "later";   
-uint8_t SELF_ID = 0;       //////////////ID         
+char ssid[] = "Field_Building2.4G";        
+char pass[] = "helloguys";  
+
+uint8_t SELF_ID = 0;       ///////////// STRIP SPECS       
+const int LED_PIN        = 14;
+const int NUM_LEDS       = 300;    
 
 WiFiUDP Udp;
 
@@ -22,7 +28,11 @@ const unsigned int localPort = 6000;        // local port to listen for UDP pack
 OSCErrorCode error;
 unsigned int ledState = LOW;              // LOW means led is *on*
 
-#define LED_BUILTIN
+TaskHandle_t anim_task_handles[12] = {NULL};
+
+Adafruit_NeoPixel leds(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+#define LED_BUILTIN 13
 
 void kill_old_tasks(){
   for(int i = 0; i < 12; i ++){
@@ -35,28 +45,136 @@ void kill_old_tasks(){
 
 //////////////////////////////ANIMATIONS ///////////////////////////
 
+void preset0_anim_player(void *parameter) {
+  for (;;) {
+    leds.clear();
+    leds.show();
+    vTaskDelay(30000);
+  }
+}
+
 void preset1_anim_player(void *parameter) {
   for (;;) {
-    Serial.println("Task1: LED1 ON");
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    Serial.println("Task1: LED1 OFF");
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    Serial.print("Task 1 running on core ");
-    Serial.println(xPortGetCoreID());
+    for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,255,255));
+    leds.show();
+    vTaskDelay(30000);
   }
 }
 
 void preset2_anim_player(void *parameter) {
-  for (;;) {
-    Serial.println("Task2: LED2 ON");
-    vTaskDelay(333 / portTICK_PERIOD_MS);
-    Serial.println("Task2: LED2 OFF");
-    vTaskDelay(333 / portTICK_PERIOD_MS);
-    Serial.print("Task 2 running on core ");
-    Serial.println(xPortGetCoreID());
+  char* param;
+  param = (char *) parameter;
+  int numledstolight = atoi(param);
+  
+  leds.clear();
+  for(;;){
+    for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i, leds.Color(255,255,255));
+    leds.show();
+    vTaskDelay(30000);
   }
 }
 
+void preset3_anim_player(void *parameter) {
+  char* param;
+  param = (char *) parameter;
+  int numledstolight = atoi(param);
+  
+  leds.clear();
+
+  int j = 50;
+  bool isincr = true;
+  for(;;){  
+    for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i, leds.Color(j, j, j));
+    leds.show();
+
+    if(j == 50){
+      isincr = true;
+    }
+    if( j == 255){
+      isincr = false;
+    }
+    if(isincr){
+      j = j + 1;
+    }else{
+      j = j -1;
+    }
+    vTaskDelay(5);
+  }
+}
+
+void preset10_anim_player(void *parameter) {
+  char* param;
+  param = (char *) parameter;
+  int groupof = atoi(param);
+
+  leds.clear();
+  for (int i = -1*groupof; i < NUM_LEDS ; i++){
+    for(int j = 0; j < groupof; j++){
+      if (i+j >= 0 && i+j < NUM_LEDS){
+         leds.setPixelColor(i+j, leds.Color(255,255,255));
+      }
+    }
+    leds.show();
+    vTaskDelay(10);
+  } 
+
+
+  for (;;) {
+    vTaskDelay(30000);
+  }
+}
+
+void preset11_anim_player(void *parameter) {
+  char* param;
+  param = (char *) parameter;
+  int groupof = atoi(param);
+
+  leds.clear();
+  for (int i = -1*groupof; i < NUM_LEDS ; i++){
+    leds.clear();
+    for(int j = 0; j < groupof; j++){
+      if (i+j >= 0 && i+j < NUM_LEDS){
+         leds.setPixelColor(i+j, leds.Color(255,255,255));
+      }
+    }
+    leds.show();
+    vTaskDelay(10);
+  } 
+
+  leds.clear();
+  leds.show();
+
+  for (;;) {
+    vTaskDelay(30000);
+  }
+}
+
+
+void preset12_anim_player(void *parameter) {
+  char* param;
+  param = (char *) parameter;
+  int timedelay = atoi(param);
+  timedelay = timedelay;
+
+  leds.clear();
+  for (int i = NUM_LEDS+10; i > -10 ; i--){
+    leds.clear();
+    for(int j = 0; j < 10; j++){
+      if (i-j >= 0 && i-j < NUM_LEDS){
+         leds.setPixelColor(i-j, leds.Color(255,255,255));
+      }
+    }
+    leds.show();
+    vTaskDelay(timedelay);
+  } 
+
+  leds.clear();
+  leds.show();
+
+  for (;;) {
+    vTaskDelay(30000);
+  }
+}
 
 /////////////////////OSC HANDLERS///////////////////
 
@@ -69,39 +187,65 @@ void handler(OSCMessage &msg, int offset){
 void preset_handler(OSCMessage &msg, int offset){
   Serial.println("Match: preset");
   //string multiple 'route' methods together using the pattern offset parameter. 
-  msg.route("/0", preset1_handler, offset);
+  msg.route("/0", preset0_handler, offset);
   msg.route("/1", preset1_handler, offset);
   msg.route("/2", preset2_handler, offset);
   msg.route("/3", preset3_handler, offset);
-  msg.route("/4", preset4_handler, offset);
+  msg.route("/10", preset10_handler, offset);
+  msg.route("/11", preset11_handler, offset);
+  msg.route("/12", preset12_handler, offset);
 }
+
+////////////////////////////////////PRESET HANDLERS//////////////////////
 
 void preset0_handler(OSCMessage &msg, int offset){
   Serial.println("PRES0");
-  uint8_t num = 0;
-//  xQueueSend(preset_queue, &num, 0);
+  
+  kill_old_tasks();
+  Serial.print("1 in queue attemting to createa  atask");
+  xTaskCreatePinnedToCore(preset0_anim_player, "anim1", 2048, NULL, 10,  &(anim_task_handles[0]), 0);
+
 }
 void preset1_handler(OSCMessage &msg, int offset){
-  Serial.println("PRES1");
-  
   kill_old_tasks();
   Serial.print("1 in queue attemting to createa  atask");
   xTaskCreatePinnedToCore(preset1_anim_player, "anim1", 2048, NULL, 10,  &(anim_task_handles[1]), 0);
 
 }
 void preset2_handler(OSCMessage &msg, int offset){
-  Serial.println("PRES2");
-  
   kill_old_tasks();
-  Serial.print("2 in queue attemting to createa  atask");
-  xTaskCreatePinnedToCore(preset2_anim_player, "anim2", 2048, NULL, 10,  &(anim_task_handles[2]), 0);
+
+  const char* param = msg.getAddress() +offset +1 ;
+  xTaskCreatePinnedToCore(preset2_anim_player, "anim2", 2048, (void *)param, 10,  &(anim_task_handles[2]), 0);
 }
 void preset3_handler(OSCMessage &msg, int offset){
-  Serial.println("PRES3");
+  kill_old_tasks();
+  
+  const char* param = msg.getAddress() +offset +1 ;
+  xTaskCreatePinnedToCore(preset3_anim_player, "anim2", 2048, (void *)param, 10,  &(anim_task_handles[2]), 0);
 }
-void preset4_handler(OSCMessage &msg, int offset){
-  Serial.println("PRES4");
+void preset10_handler(OSCMessage &msg, int offset){
+  Serial.println("PRES10");
+  kill_old_tasks();
+
+  const char* param = msg.getAddress() +offset +1 ;
+  xTaskCreatePinnedToCore(preset10_anim_player, "anim10", 2048, (void *)param, 10,  &(anim_task_handles[10]), 0);
 }
+void preset11_handler(OSCMessage &msg, int offset){
+  kill_old_tasks();
+
+  const char* param = msg.getAddress() +offset +1 ;
+  xTaskCreatePinnedToCore(preset11_anim_player, "anim11", 2048, (void *)param, 10,  &(anim_task_handles[10]), 0);
+}
+void preset12_handler(OSCMessage &msg, int offset){
+  kill_old_tasks();
+
+  const char* param = msg.getAddress() +offset +1 ;
+  xTaskCreatePinnedToCore(preset12_anim_player, "anim12", 2048, (void *)param, 10,  &(anim_task_handles[10]), 0);
+}
+
+
+
 
 
 /////////////////SETUP AND MAIN APP////////////////////////
@@ -111,8 +255,8 @@ void setup() {
   delay(1000);
 
   // WIFI
-  pinMode(BUILTIN_LED, OUTPUT);
-  digitalWrite(BUILTIN_LED, ledState);    // turn *on* led
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, ledState);    // turn *on* led
   // Connect to WiFi network
   Serial.println();
   Serial.println();
@@ -135,6 +279,21 @@ void setup() {
   Serial.print("Local port: ");
   Serial.println(localPort);
 
+  Serial.print("testing leds");
+  leds.begin();
+  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,0,0));
+  leds.show();
+  delay(1000);
+  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,255,0));
+  leds.show();
+  delay(1000);
+  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,0,255));
+  leds.show();
+  delay(1000);
+  leds.clear();
+  
+  Serial.print("testing doen");
+  leds.show();
 }
 
 
