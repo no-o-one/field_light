@@ -1,0 +1,39 @@
+import socket
+import struct                  
+import time
+
+ARTNET_IP = "192.168.1.255"  # broadcast
+ARTNET_PORT = 6454 # < defautl for artnet
+UNIVERSE = 0                   
+  
+def make_artnet_packet(universe, dmx_data):
+    id = b'Art-Net\x00' # artnet header
+    opcode = struct.pack('<H', 0x5000)   # op code 
+    version = struct.pack('>H', 14)
+    sequence = b'\x00'
+    physical = b'\x00'
+    uni = struct.pack('<H', universe)
+    length = struct.pack('>H', len(dmx_data))
+    return id + opcode + version + sequence + physical + uni + length + dmx_data
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+sock.bind(("", 0))
+
+dmx_data = bytes([150,0,150] * 295)  
+
+
+while True:
+    for i in range(50):
+        for x in range(5):
+            dmx_data = bytes([150,0,150] * (i))
+            dmx_data += bytes([0,0,0] * (295-i))
+            packet = make_artnet_packet(UNIVERSE, dmx_data)
+            sock.sendto(packet, (ARTNET_IP, ARTNET_PORT))
+            print("packet sent" + str(i))
+        time.sleep(0.1)
+    # dmx_data = bytes([0,0,150] * 295)  
+    # packet = make_artnet_packet(UNIVERSE, dmx_data)
+    # sock.sendto(packet, (ARTNET_IP, ARTNET_PORT))
+    # print("packet sent")
+    # time.sleep(0.25))

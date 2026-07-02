@@ -11,7 +11,7 @@ const int ARTNET_PORT    = 6454;
 const int MAX_BUFFER     = 530;
 
 const int LED_PIN        = 14;
-const int NUM_LEDS       = 300;       
+const int NUM_LEDS       = 300;
 const int START_UNIVERSE = 0;
 const int MAX_INDEX = 1024;
 
@@ -113,6 +113,7 @@ void handleArtDmx(uint8_t* buf, int len) {
     led_buffer[buffindex] = dmx[i];
     buffindex++;
   }
+  ledbuff_writeprotect = false;
   // Serial.println("reached end of loop");
   universesReceived[relativeUniverse] = true;
   lastFrameTime = millis();
@@ -132,6 +133,7 @@ void parseArtNet(uint8_t* buf, int len) {
 
   uint16_t opcode = buf[8] | (buf[9] << 8);
   if (opcode == ARTNET_OPDMX) {
+    ledbuff_writeprotect = true;
     handleArtDmx(buf, len);
   }
 }
@@ -166,27 +168,27 @@ void loop() {}
 
 void readpackets(void *pvParameters){
   for(;;){
-    // udp.begin(ARTNET_PORT);
-    // int packetSize = udp.parsePacket();
-    // if (packetSize) {
-    //   // Serial.print("Received packet of size ");
-    //   // Serial.println(packetSize);
-    //   int len = udp.read(packetBuffer, MAX_BUFFER);
-    //   parseArtNet(packetBuffer, len);
-    //   lastFrameTime = millis(); // upd last packet recieve status
-    //   udp.begin(ARTNET_PORT);
-    // }
-    // delay(25);
-    // // timeout for dropped universes
-    // bool anyReceived = false; // reset
-    // for (int i = 0; i < NUM_UNIVERSES; i++) {
-    //   if (universesReceived[i]) { anyReceived = true; break; }
-    // }
+    udp.begin(ARTNET_PORT);
+    int packetSize = udp.parsePacket();
+    if (packetSize) {
+      int len = udp.read(packetBuffer, MAX_BUFFER);
+      parseArtNet(packetBuffer, len);
+      lastFrameTime = millis(); // upd last packet recieve status
+      udp.begin(ARTNET_PORT);
+    }
+    delay(25); //give the cpu some time to not kill us
+    
+    
+    // timeout for dropped universes
+    bool anyReceived = false; // reset
+    for (int i = 0; i < NUM_UNIVERSES; i++) {
+      if (universesReceived[i]) { anyReceived = true; break; }
+    }
 
-    // if (anyReceived && (millis() - lastFrameTime > FRAME_TIMEOUT_MS)) {
-    //   // Serial.println("timeout this is a fractured frame");
-    //   memset(universesReceived, 0, sizeof(universesReceived));
-    // }
+    if (anyReceived && (millis() - lastFrameTime > FRAME_TIMEOUT_MS)) {
+      // Serial.println("timeout this is a fractured frame");
+      memset(universesReceived, 0, sizeof(universesReceived));
+    }
     delay(25);
   //   for(int i=0;i<NUM_LEDS;i++){
   //     led_buffer[i] = 10;
@@ -195,14 +197,15 @@ void readpackets(void *pvParameters){
 }
 void updateleds(void *pvParameters){
   for(;;){
-    for(int i=0;i<NUM_LEDS;i++){
-      led_buffer[i] = 10;
-    }
-    if(true){
+    // for(int i=0;i<NUM_LEDS;i++){
+    //   led_buffer[i] = 10;
+    // }
+    if(ledbuff_writeprotect = false){
       int k = 0;
-      for(int i=0;i<(int)(NUM_LEDS/XFERED);i+=ADDR_SPACE){
+      for(int i=0;i<(int)(NUM_LEDS/XFERED);i++){
+        int index = i * 3;
         for(int j=0;j<XFERED;j++){
-          leds.setPixelColor(((k*XFERED)+j),led_buffer[i],led_buffer[i+1],led_buffer[i+2]);
+          leds.setPixelColor(((k*XFERED)+j),led_buffer[index],led_buffer[index+1],led_buffer[index+2]);
         }
         k++;
       }
@@ -210,6 +213,6 @@ void updateleds(void *pvParameters){
       leds.show();
       delay(25);
     }
-    
+    delay(25);
   }
 }

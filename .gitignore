@@ -8,3 +8,5 @@
 build/
 #secrets
 *secrets.h
+#vscode files
+.vscode/
