@@ -14,10 +14,11 @@
 //core 0 - wifi ans sys stuff
 //core 1 - appcore
 
-char ssid[] = "Field_Building2.4G";        
-char pass[] = "helloguys";  
+char ssid[] = ":P";        
+char pass[] = ":P  
 
-uint8_t SELF_ID = 0;       ///////////// STRIP SPECS       
+
+uint8_t SELF_ID = 2;       ///////////// STRIP SPECS       
 const int LED_PIN        = 14;
 const int NUM_LEDS       = 300;    
 
@@ -49,11 +50,16 @@ void preset0_anim_player(void *parameter) {
   for (;;) {
     leds.clear();
     leds.show();
+      for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,0,0));
+    
+    leds.show();
     vTaskDelay(30000);
   }
 }
 
 void preset1_anim_player(void *parameter) {
+  leds.clear();
+    leds.show();
   for (;;) {
     for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,255,255));
     leds.show();
@@ -67,11 +73,20 @@ void preset2_anim_player(void *parameter) {
   int numledstolight = atoi(param);
   
   leds.clear();
-  for(;;){
-    for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i, leds.Color(255,255,255));
     leds.show();
-    vTaskDelay(30000);
+  if(SELF_ID ==2){
+    for(;;){
+      for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i, leds.Color(255,255,255));
+      leds.show();
+      vTaskDelay(30000);
+    }
+  }else{
+    for(;;){
+      vTaskDelay(30000);
+    }
   }
+  
+  
 }
 
 void preset3_anim_player(void *parameter) {
@@ -80,25 +95,29 @@ void preset3_anim_player(void *parameter) {
   int numledstolight = atoi(param);
   
   leds.clear();
-
-  int j = 50;
-  bool isincr = true;
-  for(;;){  
-    for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i, leds.Color(j, j, j));
     leds.show();
+  if (SELF_ID == 2){
+    int j = 255;
+    bool isincr = true;
+    for(;;){  
+      for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i, leds.Color(j, j, j));
+      leds.show();
 
-    if(j == 50){
-      isincr = true;
+      if(j == 50){
+        isincr = true;
+      }
+      if( j == 255){
+        isincr = false;
+      }
+      if(isincr){
+        j = j + 1;
+      }else{
+        j = j -1;
+      }
+      vTaskDelay(5);
     }
-    if( j == 255){
-      isincr = false;
-    }
-    if(isincr){
-      j = j + 1;
-    }else{
-      j = j -1;
-    }
-    vTaskDelay(5);
+  }else{
+     vTaskDelay(30000);
   }
 }
 
@@ -107,7 +126,12 @@ void preset10_anim_player(void *parameter) {
   param = (char *) parameter;
   int groupof = atoi(param);
 
+  
   leds.clear();
+    leds.show();
+
+  vTaskDelay(10*NUM_LEDS*SELF_ID +50);
+
   for (int i = -1*groupof; i < NUM_LEDS ; i++){
     for(int j = 0; j < groupof; j++){
       if (i+j >= 0 && i+j < NUM_LEDS){
@@ -118,7 +142,6 @@ void preset10_anim_player(void *parameter) {
     vTaskDelay(10);
   } 
 
-
   for (;;) {
     vTaskDelay(30000);
   }
@@ -128,8 +151,12 @@ void preset11_anim_player(void *parameter) {
   char* param;
   param = (char *) parameter;
   int groupof = atoi(param);
-
   leds.clear();
+    leds.show();
+
+  vTaskDelay((10*NUM_LEDS*SELF_ID)+50);
+
+  
   for (int i = -1*groupof; i < NUM_LEDS ; i++){
     leds.clear();
     for(int j = 0; j < groupof; j++){
@@ -138,7 +165,7 @@ void preset11_anim_player(void *parameter) {
       }
     }
     leds.show();
-    vTaskDelay(10);
+    vTaskDelay(1);
   } 
 
   leds.clear();
@@ -155,6 +182,10 @@ void preset12_anim_player(void *parameter) {
   param = (char *) parameter;
   int timedelay = atoi(param);
   timedelay = timedelay;
+  leds.clear();
+    leds.show();
+
+  vTaskDelay(timedelay*300 *((-1*SELF_ID)+4) + 50);
 
   leds.clear();
   for (int i = NUM_LEDS+10; i > -10 ; i--){
@@ -176,6 +207,89 @@ void preset12_anim_player(void *parameter) {
   }
 }
 
+
+void preset4_anim_player(void *parameter) {
+  for (;;) {
+     for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,0,0));
+     leds.show();
+       vTaskDelay(1000);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,255,0));
+  leds.show();
+         vTaskDelay(1000);
+  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,0,255));
+  leds.show();
+         vTaskDelay(1000);
+  leds.clear();
+ // leds.show();
+    // leds.clear();
+    // for (int i = 0; i <256; i++){
+    //   leds.clear();
+    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(i,0,0));
+    //   leds.show();
+    //   vTaskDelay(2);  
+    // }
+    // vTaskDelay(10);
+    // for (int j = 0; j <256; j++){
+    //   leds.clear();
+    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(255,j,0));
+    //   leds.show();
+    //   vTaskDelay(2);  
+    // }
+    // vTaskDelay(10);
+    // for (int i = 255; i > -1; i--){
+    //   leds.clear();
+    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(i,255,0));
+    //   leds.show();
+    //   vTaskDelay(2);  
+    // }
+    // vTaskDelay(10);
+    // for (int j = 0; j <256; j++){
+    //   leds.clear();
+    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(0,255,j));
+    //   leds.show();
+    //   vTaskDelay(2);  
+    // }
+    // vTaskDelay(10);
+    // for (int i = 255; i > -1; i--){
+    //   leds.clear();
+    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(0,i,255));
+    //   leds.show();
+    //   vTaskDelay(2);  
+    // }
+    // vTaskDelay(10);
+    // for (int j = 0; j <256; j++){
+    //   leds.clear();
+    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(j, 0, 255));
+    //   leds.show();
+    //   vTaskDelay(2);  
+    // }
+    // vTaskDelay(10);
+    // for (int i = 255; i > -1; i--){
+    //   leds.clear();
+    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(255,0,i));
+    //   leds.show();
+    //   vTaskDelay(2);  
+    // }
+    // vTaskDelay(10);
+  } 
+
+}
+
 /////////////////////OSC HANDLERS///////////////////
 
 void handler(OSCMessage &msg, int offset){
@@ -194,15 +308,22 @@ void preset_handler(OSCMessage &msg, int offset){
   msg.route("/10", preset10_handler, offset);
   msg.route("/11", preset11_handler, offset);
   msg.route("/12", preset12_handler, offset);
+  msg.route("/4", preset4_handler, offset);
 }
 
 ////////////////////////////////////PRESET HANDLERS//////////////////////
+void preset4_handler(OSCMessage &msg, int offset){
+  Serial.println("PRES0");
+  
+  kill_old_tasks();
+  Serial.print("rgb!");
+  xTaskCreatePinnedToCore(preset4_anim_player, "anim rgb 4", 2048, NULL, 10,  &(anim_task_handles[4]), 1);
 
+}
 void preset0_handler(OSCMessage &msg, int offset){
   Serial.println("PRES0");
   
   kill_old_tasks();
-  Serial.print("1 in queue attemting to createa  atask");
   xTaskCreatePinnedToCore(preset0_anim_player, "anim1", 2048, NULL, 10,  &(anim_task_handles[0]), 0);
 
 }
@@ -281,16 +402,6 @@ void setup() {
 
   Serial.print("testing leds");
   leds.begin();
-  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,0,0));
-  leds.show();
-  delay(1000);
-  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,255,0));
-  leds.show();
-  delay(1000);
-  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,0,255));
-  leds.show();
-  delay(1000);
-  leds.clear();
   
   Serial.print("testing doen");
   leds.show();
