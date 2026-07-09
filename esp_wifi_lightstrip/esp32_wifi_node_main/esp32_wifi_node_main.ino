@@ -158,8 +158,8 @@ void setup() {
     ARTNET_PORT, NUM_LEDS, NUM_UNIVERSES, START_UNIVERSE, START_UNIVERSE + NUM_UNIVERSES - 1);
   initTest();
 
-  xTaskCreate(readpackets,"read artnet packets and add data to buffer",10000,NULL,1,&Task_Handle1);
-  xTaskCreate(updateleds,"update leds",15000,NULL,2,&Task_Handle2);
+  //xTaskCreate(readpackets,"read artnet packets and add data to buffer",10000,NULL,1,&Task_Handle1);
+  //xTaskCreate(updateleds,"update leds",15000,NULL,2,&Task_Handle2);
 }
 
 

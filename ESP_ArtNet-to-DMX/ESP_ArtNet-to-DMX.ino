@@ -1,444 +1,203 @@
-#include <stdio.h>
-#include <string.h> // For memset
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include <OSCMessage.h>
-#include <OSCBundle.h>
-#include <OSCData.h>
 #include <Adafruit_NeoPixel.h>
-#include <stdlib.h>
-
-
 #include <password_secrets.h>
 
-//core 0 - wifi ans sys stuff
-//core 1 - appcore
+#define ARTNET_OPDMX 0x5000
 
 const char* ssid      = secret_ssid;
-const char* pass  = secret_password;
+const char* password  = secret_password;
 
 
-uint8_t SELF_ID = 2;       ///////////// STRIP SPECS       
-const int LED_PIN        = 14;
-const int NUM_LEDS       = 300;    
+const int ARTNET_PORT     = 6454;
+const int MAX_BUFFER      = 530;
 
-WiFiUDP Udp;
+const int DATA_POS        = 14;
+const int DATA_NEG        = ;
 
-const unsigned int localPort = 6000;        // local port to listen for UDP packets (here's where we send the packets)
 
-OSCErrorCode error;
-unsigned int ledState = LOW;              // LOW means led is *on*
+const int UNIVERSE        = 1;
+const int NET             = 0;
+const int SUBNET          = 0;
 
-TaskHandle_t anim_task_handles[12] = {NULL};
+uint8_t DMX_BUFFER [511] = {};
+bool DMXBUF_writeprotect = false;
 
-Adafruit_NeoPixel leds(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+WiFiUDP udp;
+uint8_t packetBuffer[MAX_BUFFER];
 
-#define LED_BUILTIN 13
 
-void kill_old_tasks(){
-  for(int i = 0; i < 12; i ++){
-    if (anim_task_handles[i] != NULL){
-      vTaskDelete(anim_task_handles[i]);
-      anim_task_handles[i] = NULL;
-    }
-  }
-}
 
-//////////////////////////////ANIMATIONS ///////////////////////////
+bool universeReceived = false;  // bool(ean) status array to track - initialized at false.
+unsigned long lastFrameTime = 0;       //track when the previous frame was recieved - initialized at 0.
+const int FRAME_TIMEOUT_MS = 1000;
 
-void preset0_anim_player(void *parameter) {
-  for (;;) {
-    leds.clear();
-    leds.show();
-      for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,0,0));
-    
-    leds.show();
-    vTaskDelay(30000);
-  }
-}
+void readpackets();
+void updateleds();
 
-void preset1_anim_player(void *parameter) {
-  leds.clear();
-    leds.show();
-  for (;;) {
-    for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,255,255));
-    leds.show();
-    vTaskDelay(30000);
-  }
-}
+TaskHandle_t Task_Handle1;
+TaskHandle_t Task_Handle2;
 
-void preset2_anim_player(void *parameter) {
-  char* param;
-  param = (char *) parameter;
-  int numledstolight = atoi(param);
-  
-  leds.clear();
-    leds.show();
-  if(SELF_ID ==2){
-    for(;;){
-      for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i, leds.Color(255,255,255));
-      leds.show();
-      vTaskDelay(30000);
-    }
-  }else{
-    for(;;){
-      vTaskDelay(30000);
-    }
-  }
-  
-  
-}
 
-void preset3_anim_player(void *parameter) {
-  char* param;
-  param = (char *) parameter;
-  int numledstolight = atoi(param);
-  
-  leds.clear();
-    leds.show();
-  if (SELF_ID == 2){
-    int j = 255;
-    bool isincr = true;
-    for(;;){  
-      for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i, leds.Color(j, j, j));
-      leds.show();
 
-      if(j == 50){
-        isincr = true;
-      }
-      if( j == 255){
-        isincr = false;
-      }
-      if(isincr){
-        j = j + 1;
-      }else{
-        j = j -1;
-      }
-      vTaskDelay(5);
-    }
-  }else{
-     vTaskDelay(30000);
-  }
-}
-
-void preset10_anim_player(void *parameter) {
-  char* param;
-  param = (char *) parameter;
-  int groupof = atoi(param);
-
-  
-  leds.clear();
-    leds.show();
-
-  vTaskDelay(10*NUM_LEDS*SELF_ID +50);
-
-  for (int i = -1*groupof; i < NUM_LEDS ; i++){
-    for(int j = 0; j < groupof; j++){
-      if (i+j >= 0 && i+j < NUM_LEDS){
-         leds.setPixelColor(i+j, leds.Color(255,255,255));
-      }
-    }
-    leds.show();
-    vTaskDelay(10);
-  } 
-
-  for (;;) {
-    vTaskDelay(30000);
-  }
-}
-
-void preset11_anim_player(void *parameter) {
-  char* param;
-  param = (char *) parameter;
-  int groupof = atoi(param);
-  leds.clear();
-    leds.show();
-
-  vTaskDelay((10*NUM_LEDS*SELF_ID)+50);
-
-  
-  for (int i = -1*groupof; i < NUM_LEDS ; i++){
-    leds.clear();
-    for(int j = 0; j < groupof; j++){
-      if (i+j >= 0 && i+j < NUM_LEDS){
-         leds.setPixelColor(i+j, leds.Color(255,255,255));
-      }
-    }
-    leds.show();
-    vTaskDelay(1);
-  } 
-
-  leds.clear();
-  leds.show();
-
-  for (;;) {
-    vTaskDelay(30000);
-  }
-}
-
-
-void preset12_anim_player(void *parameter) {
-  char* param;
-  param = (char *) parameter;
-  int timedelay = atoi(param);
-  timedelay = timedelay;
-  leds.clear();
-    leds.show();
-
-  vTaskDelay(timedelay*300 *((-1*SELF_ID)+4) + 50);
-
-  leds.clear();
-  for (int i = NUM_LEDS+10; i > -10 ; i--){
-    leds.clear();
-    for(int j = 0; j < 10; j++){
-      if (i-j >= 0 && i-j < NUM_LEDS){
-         leds.setPixelColor(i-j, leds.Color(255,255,255));
-      }
-    }
-    leds.show();
-    vTaskDelay(timedelay);
-  } 
-
-  leds.clear();
-  leds.show();
-
-  for (;;) {
-    vTaskDelay(30000);
-  }
-}
-
-
-void preset4_anim_player(void *parameter) {
-  for (;;) {
-     for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,0,0));
-     leds.show();
-       vTaskDelay(1000);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,255,0));
-  leds.show();
-         vTaskDelay(1000);
-  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(0,0,255));
-  leds.show();
-         vTaskDelay(1000);
-  leds.clear();
- // leds.show();
-    // leds.clear();
-    // for (int i = 0; i <256; i++){
-    //   leds.clear();
-    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(i,0,0));
-    //   leds.show();
-    //   vTaskDelay(2);  
-    // }
-    // vTaskDelay(10);
-    // for (int j = 0; j <256; j++){
-    //   leds.clear();
-    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(255,j,0));
-    //   leds.show();
-    //   vTaskDelay(2);  
-    // }
-    // vTaskDelay(10);
-    // for (int i = 255; i > -1; i--){
-    //   leds.clear();
-    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(i,255,0));
-    //   leds.show();
-    //   vTaskDelay(2);  
-    // }
-    // vTaskDelay(10);
-    // for (int j = 0; j <256; j++){
-    //   leds.clear();
-    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(0,255,j));
-    //   leds.show();
-    //   vTaskDelay(2);  
-    // }
-    // vTaskDelay(10);
-    // for (int i = 255; i > -1; i--){
-    //   leds.clear();
-    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(0,i,255));
-    //   leds.show();
-    //   vTaskDelay(2);  
-    // }
-    // vTaskDelay(10);
-    // for (int j = 0; j <256; j++){
-    //   leds.clear();
-    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(j, 0, 255));
-    //   leds.show();
-    //   vTaskDelay(2);  
-    // }
-    // vTaskDelay(10);
-    // for (int i = 255; i > -1; i--){
-    //   leds.clear();
-    //   for (int o = 0; o < NUM_LEDS; o++) leds.setPixelColor(o, leds.Color(255,0,i));
-    //   leds.show();
-    //   vTaskDelay(2);  
-    // }
-    // vTaskDelay(10);
-  } 
-
-}
-
-/////////////////////OSC HANDLERS///////////////////
-
-void handler(OSCMessage &msg, int offset){
-  //Serial.println("Match: string");
-  //string multiple 'route' methods together using the pattern offset parameter. 
-  msg.route("/preset", preset_handler, offset);
-}
-
-void preset_handler(OSCMessage &msg, int offset){
-  //Serial.println("Match: preset");
-  //string multiple 'route' methods together using the pattern offset parameter. 
-  msg.route("/0", preset0_handler, offset);
-  msg.route("/1", preset1_handler, offset);
-  msg.route("/2", preset2_handler, offset);
-  msg.route("/3", preset3_handler, offset);
-  msg.route("/10", preset10_handler, offset);
-  msg.route("/11", preset11_handler, offset);
-  msg.route("/12", preset12_handler, offset);
-  msg.route("/4", preset4_handler, offset);
-}
-
-////////////////////////////////////PRESET HANDLERS//////////////////////
-void preset4_handler(OSCMessage &msg, int offset){
-  //Serial.println("PRES0");
-  
-  kill_old_tasks();
-  //Serial.print("rgb!");
-  xTaskCreatePinnedToCore(preset4_anim_player, "anim rgb 4", 2048, NULL, 10,  &(anim_task_handles[4]), 1);
-
-}
-void preset0_handler(OSCMessage &msg, int offset){
-  //Serial.println("PRES0");
-  
-  kill_old_tasks();
-  xTaskCreatePinnedToCore(preset0_anim_player, "anim1", 2048, NULL, 10,  &(anim_task_handles[0]), 0);
-
-}
-void preset1_handler(OSCMessage &msg, int offset){
-  kill_old_tasks();
-  //Serial.print("1 in queue attemting to createa  atask");
-  xTaskCreatePinnedToCore(preset1_anim_player, "anim1", 2048, NULL, 10,  &(anim_task_handles[1]), 0);
-
-}
-void preset2_handler(OSCMessage &msg, int offset){
-  kill_old_tasks();
-
-  const char* param = msg.getAddress() +offset +1 ;
-  xTaskCreatePinnedToCore(preset2_anim_player, "anim2", 2048, (void *)param, 10,  &(anim_task_handles[2]), 0);
-}
-void preset3_handler(OSCMessage &msg, int offset){
-  kill_old_tasks();
-  
-  const char* param = msg.getAddress() +offset +1 ;
-  xTaskCreatePinnedToCore(preset3_anim_player, "anim2", 2048, (void *)param, 10,  &(anim_task_handles[2]), 0);
-}
-void preset10_handler(OSCMessage &msg, int offset){
-  //Serial.println("PRES10");
-  kill_old_tasks();
-
-  const char* param = msg.getAddress() +offset +1 ;
-  xTaskCreatePinnedToCore(preset10_anim_player, "anim10", 2048, (void *)param, 10,  &(anim_task_handles[10]), 0);
-}
-void preset11_handler(OSCMessage &msg, int offset){
-  kill_old_tasks();
-
-  const char* param = msg.getAddress() +offset +1 ;
-  xTaskCreatePinnedToCore(preset11_anim_player, "anim11", 2048, (void *)param, 10,  &(anim_task_handles[10]), 0);
-}
-void preset12_handler(OSCMessage &msg, int offset){
-  kill_old_tasks();
-
-  const char* param = msg.getAddress() +offset +1 ;
-  xTaskCreatePinnedToCore(preset12_anim_player, "anim12", 2048, (void *)param, 10,  &(anim_task_handles[10]), 0);
-}
-
-/////////////////LED TESTING SCRIPT////////////////////////
-
-void initTest() {
-  uint32_t colors[] = {
-    leds.Color(255, 0, 0),
-    leds.Color(0, 255, 0),
-    leds.Color(0, 0, 255),
-    leds.Color(0, 0, 0),
-    //leds.Color(255, 255, 255)
-    
-  };
-  for (uint32_t c : colors) {
-    for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, c);
-    leds.show();
-    delay(400);
-  }
-}
-
-/////////////////SETUP AND MAIN APP////////////////////////
-
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-
-  // WIFI
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, ledState);    // turn *on* led
-  // Connect to WiFi network
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, pass);
-
+bool connectWifi() {
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-  }
-  Serial.println("");
-
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-
-  Serial.println("Starting UDP");
-  Udp.begin(localPort);
-  Serial.print("Local port: ");
-  Serial.println(localPort);
-
-  Serial.print("testing leds");
-  leds.begin();
-  initTest();
-  Serial.print("testing done");
-}
-
-
-
-void loop(){
-    OSCMessage msg;
-    int size = Udp.parsePacket();
-
-    if (size > 0) {
-      while (size--) {
-        msg.fill(Udp.read());
-      }
-      if (!msg.hasError()) {
-        msg.route("/strip", handler);
-      } else {
-        error = msg.getError();
-        //Serial.print("error: ");
-        //Serial.println(error);
-     }
+    if (i++ > 20){
+        Serial.println("\n failed to connect wifi");
+        return false;
     }
-  //yileds here
+  }
+  Serial.printf("\n wifi conected @ %s\n", WiFi.localIP().toString().c_str());
+  return true;
 }
+
+
+// bool alluniversereceived() {
+//   for (int i = 0; i < NUM_UNIVERSES; i++) {
+//     if (!universereceived[i])
+//         return false;
+//   }
+//   return true;
+// }
+
+// void handleArtDmx(uint8_t* buf, int len) {
+//   if (len < 18) return;
+
+//   uint16_t universe = buf[14] | (buf[15] << 8);
+//   uint16_t dmxLen   = (buf[16] << 8) | buf[17];
+//   uint8_t* dmx      = &buf[18];
+
+//   //Serial.printf("  Got universe %d (%d/%d)\n", universe, relativeUniverse + 1, NUM_UNIVERSES);
+
+//   int startLed = relativeUniverse; //which led does this univesrse start with
+//   // Serial.print("startled");
+//   // Serial.println(startLed);
+//   for (int i = 0; i < ((int)(dmxLen)); i += 1) {
+//     int ledIndex = startLed + (i / ADDR_SPACE);// always an int becuase incremented in fractions of 3
+//     if (ledIndex >= 511) break;
+//   }
+    
+//   int buffindex = 0;
+//   for (int i = START_VAL;  i < (int)((NUM_LEDS * ADDR_SPACE)/XFERED);i++){
+//     DMX_BUFFER[buffindex] = dmx[i];
+//     buffindex++;
+//   }
+//   ledbuff_writeprotect = false;
+//   // Serial.println("reached end of loop");
+//   universereceived[relativeUniverse] = true;
+//   lastFrameTime = millis();
+
+//   //ADD DATA FLAG TO TELL IF OK TO WRITE TO NEOPIXELS OR NA
+
+//   // make sure both universes recieved or else its fractured data
+//   // if (alluniversereceived()) {
+//   //leds.show();
+//   //  memset(universereceived, 0, sizeof(universereceived));  // reset for next frame
+//   //  }
+// }
+
+// void parseArtNet(uint8_t* buf, int len) {
+//   if (len < 10) return;
+//   if (memcmp(buf, "Art-Net\0", 8) != 0) return;
+
+//   uint16_t opcode = buf[8] | (buf[9] << 8);
+//   if (opcode == ARTNET_OPDMX) {
+//     ledbuff_writeprotect = true;
+//     handleArtDmx(buf, len);
+//   }
+// }
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+
+  //initialize led buffer to all 0s
+  for(int i=1;i<511;i++){
+    DMX_BUFFER[i] = 0;
+  }
+
+  if (!connectWifi()) return;
+
+  udp.begin(ARTNET_PORT);
+  Serial.printf("Listening on port %d \n",ARTNET_PORT);
+  pinMode(DATA_POS,OUTPUT);
+  pinMode(DATA_NEG,OUTPUT);
+
+  //xTaskCreate(readpackets,"read artnet packets and add data to buffer",10000,NULL,1,&Task_Handle1);
+  //xTaskCreate(updateleds,"update leds",15000,NULL,2,&Task_Handle2);
+}
+
+void write_dmx(){
+}
+void begin_dmx(){
+
+}
+void end_dmx(){}
+
+
+
+
+
+
+
+void loop() {
+
+}
+
+// void readpackets(void *pvParameters){
+//   for(;;){
+//     udp.begin(ARTNET_PORT);
+//     int packetSize = udp.parsePacket();
+//     if (packetSize) {
+//       int len = udp.read(packetBuffer, MAX_BUFFER);
+//       parseArtNet(packetBuffer, len);
+//       lastFrameTime = millis(); // upd last packet recieve status
+//       udp.begin(ARTNET_PORT);
+//     }
+//     delay(25); //give the cpu some time to not kill us
+    
+    
+//     // timeout for dropped universes
+//     bool anyReceived = false; // reset
+//     for (int i = 0; i < NUM_UNIVERSES; i++) {
+//       if (universereceived) { anyReceived = true; break; }
+//     }
+
+//     if (anyReceived && (millis() - lastFrameTime > FRAME_TIMEOUT_MS)) {
+//       // Serial.println("timeout this is a fractured frame");
+//       memset(universereceived, 0, sizeof(universereceived));
+//     }
+//     delay(25);
+//   //   for(int i=0;i<NUM_LEDS;i++){
+//   //     DMX_BUFFER[i] = 10;
+//   // }
+//   }
+// }
+
+
+// void updatedmx(void *pvParameters){
+//   for(;;){
+//     // for(int i=0;i<NUM_LEDS;i++){
+//     //   DMX_BUFFER[i] = 10;
+//     // }
+//     if(ledbuff_writeprotect = false){
+//       int k = 0;
+//       for(int i=0;i<(int)(NUM_LEDS/XFERED);i++){
+//         int index = i * 3;
+//         for(int j=0;j<XFERED;j++){
+//           leds.setPixelColor(((k*XFERED)+j),DMX_BUFFER[index],DMX_BUFFER[index+1],DMX_BUFFER[index+2]);
+//         }
+//         k++;
+//       }
+      
+//       leds.show();
+//       delay(25);
+//     }
+//     delay(25);
+//   }
+// }
