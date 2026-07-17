@@ -21,8 +21,8 @@ const char* pass  = secret_password;
 const IPAddress bcastIp(192,168,0,255);   
 
 
-const uint8_t SELF_ID = 3;       ///////////// STRIP SPECS   
-const uint8_t LAST_ID = 3;    
+const uint8_t SELF_ID = 0;       ///////////// STRIP SPECS   
+const uint8_t LAST_ID = 0;    
 uint8_t ANIM_DELAY = 10; //ms, dleay between frames of the animation
 const int LED_PIN        = 14;
 const int NUM_LEDS       = 600;    
@@ -35,7 +35,7 @@ const unsigned int localPort = 6000;        // local port to listen for UDP pack
 OSCErrorCode error;
 unsigned int ledState = LOW;              // LOW means led is *on*
 
-TaskHandle_t anim_task_handles[13] = {NULL};
+TaskHandle_t anim_task_handles[20] = {NULL};
 
 Adafruit_NeoPixel leds(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -49,20 +49,19 @@ bool tracking_delay(TickType_t ticks) {
 }
 
 void kill_old_tasks(){
-  for(int i = 0; i < 12; i ++){
+  for(int i = 0; i < 21; i ++){
     if (anim_task_handles[i] != NULL){
 
       TaskHandle_t handle = anim_task_handles[i];
       anim_task_handles[i] = NULL;
 
-      xTaskNotifyGive(handle); // wake it up, tell it to stop
+      xTaskNotifyGive(handle); // notify to stop 
 
-      // int tries = 0;
-      // while (eTaskGetState(h) != eDeleted && tries < 200) {
-      //   vTaskDelay(pdMS_TO_TICKS(5));
-      //   tries++;
-      // }
-    
+      int tries = 0;
+      while (eTaskGetState(handle) != eDeleted && tries < 200) { // wait for task to destruct
+        vTaskDelay(pdMS_TO_TICKS(5));
+        tries++;
+      }  
 
     }
   }
@@ -112,8 +111,6 @@ void preset0_anim_player(void *parameter) {
 
   for (;;) {
     if (tracking_delay(30000)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -135,15 +132,12 @@ void preset1_anim_player(void *parameter) {
   msg.empty();
 
   leds.clear();
-  leds.show();
 
   for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,255,255));
   leds.show();
 
   for (;;) {
     if (tracking_delay(30000)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
     }
@@ -170,8 +164,6 @@ void preset2_anim_player(void *parameter) {
 
 
   leds.clear();
-  leds.show();
-
 
   if(SELF_ID == LAST_ID){
     for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i-1, leds.Color(255,255,255));
@@ -179,8 +171,6 @@ void preset2_anim_player(void *parameter) {
 
     for(;;){
       if (tracking_delay(30000)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -221,7 +211,7 @@ void preset3_anim_player(void *parameter) {
 
   
   leds.clear();
-  leds.show();
+
 
   if (SELF_ID == LAST_ID){
     int j = 255;
@@ -243,8 +233,6 @@ void preset3_anim_player(void *parameter) {
       }
 
       if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -252,14 +240,56 @@ void preset3_anim_player(void *parameter) {
   }else{
     for(;;){
       if (tracking_delay(30000)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
     }
   }
 }
+
+
+void preset4_anim_player(void *parameter) {
+  char* param;
+  param = (char *) parameter;
+  int groupof = atoi(param);
+ 
+  String myresp = String("/strip/");
+  myresp = myresp + (SELF_ID+1);
+  myresp = myresp + "/preset/4/";
+  myresp = myresp + groupof;
+  Serial.println(myresp.c_str());
+
+  OSCMessage msg(myresp.c_str());
+  Udp.beginPacket(bcastIp, localPort);
+  msg.send(Udp);
+  Udp.endPacket();
+  msg.empty();
+
+  leds.clear();
+
+  int chunksize = groupof*12;
+  int chunkamount = NUM_LEDS / chunksize; 
+  for (;;) {
+
+    for (int i = 0; i < (chunksize + NUM_LEDS); i += chunksize){
+      int offset = random(0, (chunksize - groupof));
+      for (int j = offset; j < (offset + groupof); j ++){
+        
+        if (i+j >= 0 && i+j < NUM_LEDS) leds.setPixelColor(i+j, leds.Color(255,255,255));
+      }
+
+    }
+    leds.show();
+    leds.clear();
+    if (tracking_delay(ANIM_DELAY + 5)) { //wait, kill self if told to
+      vTaskDelete(NULL); 
+      return;
+    }
+
+  }
+}
+
+
 
 void preset10_anim_player(void *parameter) {
   char* param;
@@ -282,8 +312,6 @@ void preset10_anim_player(void *parameter) {
     leds.show();
 
     if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
     }
@@ -304,8 +332,6 @@ void preset10_anim_player(void *parameter) {
 
   for (;;) {
     if (tracking_delay(30000)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
     }
@@ -333,8 +359,7 @@ void preset11_anim_player(void *parameter) {
     leds.show();
 
     if (tracking_delay(ANIM_DELAY)) { //wait
-      leds.clear();
-      leds.show();
+
       vTaskDelete(NULL); 
       return;
     }
@@ -357,8 +382,6 @@ void preset11_anim_player(void *parameter) {
 
   for (;;) {
     if (tracking_delay(30000)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -369,7 +392,7 @@ void preset11_anim_player(void *parameter) {
 void preset12_anim_player(void *parameter) {
   char* param;
   param = (char *) parameter;
-  int timedelay = atoi(param);
+  int groupof = atoi(param);
   
   leds.clear();
   leds.show();
@@ -377,25 +400,27 @@ void preset12_anim_player(void *parameter) {
  // vTaskDelay((timedelay*2)*NUM_LEDS*((-1*SELF_ID)+LAST_ID));
 
   leds.clear();
-  for (int i = NUM_LEDS+10; i > -10 ; i--){
+  int i = NUM_LEDS-1;
+  while (i >= (-1*groupof)){
     leds.clear();
-    for(int j = 0; j < 10; j++){
+    for(int j = 0; j < groupof; j++){
 
       if (i-j >= 0 && i-j < NUM_LEDS) leds.setPixelColor(i-j, leds.Color(255,255,255));
       
     }
     leds.show();
-    if (tracking_delay(timedelay)) { //wait
-        leds.clear();
-        leds.show();
+    if (tracking_delay(ANIM_DELAY)) { //wait, kill self if signal recieved 
         vTaskDelete(NULL); 
         return;
     }
+
+    i = i - groupof;
   } 
+
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID-1);
   myresp = myresp + "/preset/12/";
-  myresp = myresp + timedelay;
+  myresp = myresp + groupof;
   Serial.println(myresp.c_str());
 
   OSCMessage msg(myresp.c_str());
@@ -409,8 +434,6 @@ void preset12_anim_player(void *parameter) {
 
   for (;;) {
     if (tracking_delay(30000)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -418,7 +441,7 @@ void preset12_anim_player(void *parameter) {
 }
 
 
-void preset4_anim_player(void *parameter) {
+void preset20_anim_player(void *parameter) {
 
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID+1);
@@ -432,7 +455,6 @@ void preset4_anim_player(void *parameter) {
   msg.empty();
 
   for (;;) {
-    leds.show();
     leds.clear();
 
     for (int j = 0; j <256; j+=5){
@@ -441,8 +463,6 @@ void preset4_anim_player(void *parameter) {
       leds.show();
 
       if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }  
@@ -455,8 +475,6 @@ void preset4_anim_player(void *parameter) {
       leds.show();
       
       if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -469,8 +487,6 @@ void preset4_anim_player(void *parameter) {
       leds.show();
 
       if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -483,8 +499,6 @@ void preset4_anim_player(void *parameter) {
       leds.show();
 
       if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -497,8 +511,6 @@ void preset4_anim_player(void *parameter) {
       leds.show();
 
       if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -511,16 +523,12 @@ void preset4_anim_player(void *parameter) {
       leds.show();
 
       if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
 
     }
     if (tracking_delay(ANIM_DELAY)) { //wait
-        leds.clear();
-        leds.show();
         vTaskDelete(NULL); 
         return;
       }
@@ -544,21 +552,15 @@ void preset_handler(OSCMessage &msg, int offset){
   msg.route("/1", preset1_handler, offset);
   msg.route("/2", preset2_handler, offset);
   msg.route("/3", preset3_handler, offset);
+  msg.route("/4", preset4_handler, offset);
   msg.route("/10", preset10_handler, offset);
   msg.route("/11", preset11_handler, offset);
   msg.route("/12", preset12_handler, offset);
-  msg.route("/4", preset4_handler, offset);
+  msg.route("/20", preset20_handler, offset);
 }
 
 ////////////////////////////////////PRESET HANDLERS//////////////////////
-void preset4_handler(OSCMessage &msg, int offset){
-  //Serial.println("PRES0");
-  
-  kill_old_tasks();
-  //Serial.print("rgb!");
-  xTaskCreatePinnedToCore(preset4_anim_player, "anim rgb 4", 2048, NULL, 10,  &(anim_task_handles[4]), 1);
 
-}
 void preset0_handler(OSCMessage &msg, int offset){
  // Serial.println("PRES0");
   
@@ -583,7 +585,13 @@ void preset3_handler(OSCMessage &msg, int offset){
   kill_old_tasks();
   
   const char* param = msg.getAddress() +offset +1 ;
-  xTaskCreatePinnedToCore(preset3_anim_player, "anim2", 2048, (void *)param, 10,  &(anim_task_handles[3]), 1);
+  xTaskCreatePinnedToCore(preset3_anim_player, "anim3", 2048, (void *)param, 10,  &(anim_task_handles[3]), 1);
+}
+void preset4_handler(OSCMessage &msg, int offset){
+  kill_old_tasks();
+  
+  const char* param = msg.getAddress() +offset +1 ;
+  xTaskCreatePinnedToCore(preset4_anim_player, "anim4", 2048, (void *)param, 10,  &(anim_task_handles[4]), 1);
 }
 void preset10_handler(OSCMessage &msg, int offset){
   //Serial.println("PRES10");
@@ -603,6 +611,13 @@ void preset12_handler(OSCMessage &msg, int offset){
 
   const char* param = msg.getAddress() +offset +1 ;
   xTaskCreatePinnedToCore(preset12_anim_player, "anim12", 2048, (void *)param, 10,  &(anim_task_handles[12]), 1);
+}
+void preset20_handler(OSCMessage &msg, int offset){
+  //Serial.println("PRES0");
+  
+  kill_old_tasks();
+  //Serial.print("rgb!");
+  xTaskCreatePinnedToCore(preset20_anim_player, "anim rgb 20", 2048, NULL, 10,  &(anim_task_handles[20]), 1);
 }
 
 /////////////////LED TESTING SCRIPT////////////////////////
