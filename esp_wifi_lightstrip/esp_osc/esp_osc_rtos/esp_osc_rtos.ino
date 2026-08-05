@@ -22,11 +22,11 @@ const IPAddress bcastIp(192,168,0,255);
 
 
 const uint8_t SELF_ID = 0;       ///////////// STRIP SPECS   
-const uint8_t LAST_ID = 0;    
+const uint8_t LAST_ID = 3;    
 uint8_t ANIM_DELAY = 10; //ms, dleay between frames of the animation
 const int LED_PIN        = 14;
-const int NUM_LEDS       = 600;    
-const bool IS_KNOCKOFF = false; 
+const int NUM_LEDS       = 900;    
+const bool IS_KNOCKOFF = true; 
 
 WiFiUDP Udp;
 
@@ -66,6 +66,16 @@ void kill_old_tasks(){
     }
   }
 }
+
+const char* get_safe_param(OSCMessage &msg, int offset){
+  const char* addr = msg.getAddress();
+  int addrlen = strlen(addr);
+  if (offset < addrlen && addr[offset] == '/') {
+    return addr + offset + 1;   
+  }
+  return addr + addrlen;        
+}
+
 
 void my_loop(void *parameter){
   Serial.println("LOOP REACHED!");
@@ -119,10 +129,34 @@ void preset0_anim_player(void *parameter) {
 
 
 void preset1_anim_player(void *parameter) {
+  char* param;
+  param = (char *) parameter;
+  char* color_str = NULL;
+  char* parambackup = NULL;
+
+  if(strlen(param) > 0 ){
+  parambackup = strdup(param);
+  color_str = strtok(param, "/");
+  }
+
+  uint8_t color[3] = {255, 255, 255};
+
+  if(color_str != NULL){
+     color[0] = (uint8_t)atoi(strtok(color_str, ","));
+     color[1] = (uint8_t)atoi(strtok(NULL, ","));
+     color[2] = (uint8_t)atoi(strtok(NULL, ","));
+     if (IS_KNOCKOFF){
+      uint8_t temp = color[0];
+      color[0] = color[1];
+      color[1] = temp;
+     }
+  }
+ 
 
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID+1);
-  myresp = myresp + "/preset/1";
+  myresp = myresp + "/preset/1/";
+  if (parambackup != NULL) myresp = myresp + parambackup;
   Serial.println(myresp.c_str());
 
   OSCMessage msg(myresp.c_str());
@@ -133,7 +167,7 @@ void preset1_anim_player(void *parameter) {
 
   leds.clear();
 
-  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(255,255,255));
+  for (int i = 0; i < NUM_LEDS; i++) leds.setPixelColor(i, leds.Color(color[0],color[1],color[2]));
   leds.show();
 
   for (;;) {
@@ -148,12 +182,30 @@ void preset1_anim_player(void *parameter) {
 void preset2_anim_player(void *parameter) {
   char* param;
   param = (char *) parameter;
-  int numledstolight = atoi((char *)param);
+  char* parambackup = strdup(param);
+  
+  int numledstolight = atoi(strtok(param, "/"));
+  char* color_str = strtok(NULL, "/");
+  uint8_t color[3] = {255, 255, 255};
+
+
+  if(color_str != NULL){
+     color[0] = (uint8_t)atoi(strtok(color_str, ","));
+     color[1] = (uint8_t)atoi(strtok(NULL, ","));
+     color[2] = (uint8_t)atoi(strtok(NULL, ","));
+     if (IS_KNOCKOFF){
+      uint8_t temp = color[0];
+      color[0] = color[1];
+      color[1] = temp;
+     }
+  }
+
+
 
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID+1);
   myresp = myresp + "/preset/2/";
-  myresp = myresp + numledstolight;
+  myresp = myresp + parambackup;
   Serial.println(myresp.c_str());
 
   OSCMessage msg(myresp.c_str());
@@ -166,7 +218,7 @@ void preset2_anim_player(void *parameter) {
   leds.clear();
 
   if(SELF_ID == LAST_ID){
-    for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i-1, leds.Color(255,255,255));
+    for (int i = 0; i < numledstolight; i++) leds.setPixelColor(NUM_LEDS-i-1, leds.Color(color[0], color[1], color[2]));
     leds.show();
 
     for(;;){
@@ -194,12 +246,16 @@ void preset2_anim_player(void *parameter) {
 void preset3_anim_player(void *parameter) {
   char* param;
   param = (char *) parameter;
-  int numledstolight = atoi(param);
+  char* parambackup = strdup(param);
+
+  
+  int numledstolight = atoi(strtok(param, "/"));
+
  
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID+1);
   myresp = myresp + "/preset/3/";
-  myresp = myresp + numledstolight;
+  myresp = myresp + parambackup;
   Serial.println(myresp.c_str());
 
   OSCMessage msg(myresp.c_str());
@@ -209,7 +265,6 @@ void preset3_anim_player(void *parameter) {
   msg.empty();
 
 
-  
   leds.clear();
 
 
@@ -251,12 +306,28 @@ void preset3_anim_player(void *parameter) {
 void preset4_anim_player(void *parameter) {
   char* param;
   param = (char *) parameter;
-  int groupof = atoi(param);
+  char* parambackup = strdup(param);
+
+  int groupof = atoi(strtok(param, "/"));
+  char* color_str = strtok(NULL, "/");
+  uint8_t color[3] = {255, 255, 255};
+
+  if(color_str != NULL){
+     color[0] = (uint8_t)atoi(strtok(color_str, ","));
+     color[1] = (uint8_t)atoi(strtok(NULL, ","));
+     color[2] = (uint8_t)atoi(strtok(NULL, ","));
+     if (IS_KNOCKOFF){
+      uint8_t temp = color[0];
+      color[0] = color[1];
+      color[1] = temp;
+     }
+  }
  
+
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID+1);
   myresp = myresp + "/preset/4/";
-  myresp = myresp + groupof;
+  myresp = myresp + parambackup;
   Serial.println(myresp.c_str());
 
   OSCMessage msg(myresp.c_str());
@@ -275,7 +346,7 @@ void preset4_anim_player(void *parameter) {
       int offset = random(0, (chunksize - groupof));
       for (int j = offset; j < (offset + groupof); j ++){
         
-        if (i+j >= 0 && i+j < NUM_LEDS) leds.setPixelColor(i+j, leds.Color(255,255,255));
+        if (i+j >= 0 && i+j < NUM_LEDS) leds.setPixelColor(i+j, leds.Color(color[0],color[1],color[2]));
       }
 
     }
@@ -294,7 +365,23 @@ void preset4_anim_player(void *parameter) {
 void preset10_anim_player(void *parameter) {
   char* param;
   param = (char *) parameter;
-  int groupof = atoi(param);
+  char* parambackup = strdup(param);
+
+  int groupof = atoi(strtok(param, "/"));
+  char* color_str = strtok(NULL, "/");
+  uint8_t color[3] = {255, 255, 255};
+
+  if(color_str != NULL){
+     color[0] = (uint8_t)atoi(strtok(color_str, ","));
+     color[1] = (uint8_t)atoi(strtok(NULL, ","));
+     color[2] = (uint8_t)atoi(strtok(NULL, ","));
+     if (IS_KNOCKOFF){
+      uint8_t temp = color[0];
+      color[0] = color[1];
+      color[1] = temp;
+     }
+  }
+
 
   leds.clear();
   leds.show();
@@ -305,7 +392,7 @@ void preset10_anim_player(void *parameter) {
   while (i < NUM_LEDS+groupof){
     for(int j = 0; j < groupof; j++){
 
-      if (i+j >= 0 && i+j < NUM_LEDS) leds.setPixelColor(i+j, leds.Color(255,255,255));
+      if (i+j >= 0 && i+j < NUM_LEDS) leds.setPixelColor(i+j, leds.Color(color[0], color[1], color[2]));
       
     }
     i = i + groupof;
@@ -320,7 +407,7 @@ void preset10_anim_player(void *parameter) {
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID+1);
   myresp = myresp + "/preset/10/";
-  myresp = myresp + groupof;
+  myresp = myresp + parambackup;
   Serial.println(myresp.c_str());
 
   OSCMessage msg(myresp.c_str());
@@ -338,10 +425,33 @@ void preset10_anim_player(void *parameter) {
   }
 }
 
+
 void preset11_anim_player(void *parameter) {
   char* param;
   param = (char *) parameter;
-  int groupof = atoi(param);
+  char* parambackup = strdup(param);
+
+  int groupof = atoi(strtok(param, "/"));
+  char* color_str = strtok(NULL, "/");
+  uint8_t color[3] = {255, 255, 255};
+
+  if(color_str != NULL){
+     color[0] = (uint8_t)atoi(strtok(color_str, ","));
+     color[1] = (uint8_t)atoi(strtok(NULL, ","));
+     color[2] = (uint8_t)atoi(strtok(NULL, ","));
+     if (IS_KNOCKOFF){
+      uint8_t temp = color[0];
+      color[0] = color[1];
+      color[1] = temp;
+     }
+  }
+
+  // Serial.println(groupof);
+  // Serial.println(color[0]);
+  // Serial.println(color[1]);
+  // Serial.println(color[2]);
+
+
   leds.clear();
   leds.show();
 
@@ -353,7 +463,7 @@ void preset11_anim_player(void *parameter) {
 
     for(int j = 0; j < groupof; j++){
 
-      if (i+j >= 0 && i+j < NUM_LEDS) leds.setPixelColor(i+j, leds.Color(255,255,255));
+      if (i+j >= 0 && i+j < NUM_LEDS) leds.setPixelColor(i+j, leds.Color(color[0], color[1], color[2]));
     }
     i = i + groupof;
     leds.show();
@@ -368,7 +478,7 @@ void preset11_anim_player(void *parameter) {
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID+1);
   myresp = myresp + "/preset/11/";
-  myresp = myresp + groupof;
+  myresp = myresp + parambackup;
   Serial.println(myresp.c_str());
 
   OSCMessage msg(myresp.c_str());
@@ -392,8 +502,24 @@ void preset11_anim_player(void *parameter) {
 void preset12_anim_player(void *parameter) {
   char* param;
   param = (char *) parameter;
-  int groupof = atoi(param);
-  
+  char* parambackup = strdup(param);
+
+  int groupof = atoi(strtok(param, "/"));
+  char* color_str = strtok(NULL, "/");
+  uint8_t color[3] = {255, 255, 255};
+
+  if(color_str != NULL){
+     color[0] = (uint8_t)atoi(strtok(color_str, ","));
+     color[1] = (uint8_t)atoi(strtok(NULL, ","));
+     color[2] = (uint8_t)atoi(strtok(NULL, ","));
+     if (IS_KNOCKOFF){
+      uint8_t temp = color[0];
+      color[0] = color[1];
+      color[1] = temp;
+     }
+  }
+
+
   leds.clear();
   leds.show();
 
@@ -405,7 +531,7 @@ void preset12_anim_player(void *parameter) {
     leds.clear();
     for(int j = 0; j < groupof; j++){
 
-      if (i-j >= 0 && i-j < NUM_LEDS) leds.setPixelColor(i-j, leds.Color(255,255,255));
+      if (i-j >= 0 && i-j < NUM_LEDS) leds.setPixelColor(i-j, leds.Color(color[0], color[1], color[2]));
       
     }
     leds.show();
@@ -420,7 +546,7 @@ void preset12_anim_player(void *parameter) {
   String myresp = String("/strip/");
   myresp = myresp + (SELF_ID-1);
   myresp = myresp + "/preset/12/";
-  myresp = myresp + groupof;
+  myresp = myresp + parambackup;
   Serial.println(myresp.c_str());
 
   OSCMessage msg(myresp.c_str());
@@ -572,7 +698,8 @@ void preset1_handler(OSCMessage &msg, int offset){
   
   kill_old_tasks();
   //Serial.println("HNDLER 1");
-  xTaskCreatePinnedToCore(preset1_anim_player, "anim1", 2048, NULL, 10,  &(anim_task_handles[1]), 1);
+  const char* param = get_safe_param(msg, offset);
+  xTaskCreatePinnedToCore(preset1_anim_player, "anim1", 2048, (void *)param, 10,  &(anim_task_handles[1]), 1);
 
 }
 void preset2_handler(OSCMessage &msg, int offset){

@@ -1,0 +1,9 @@
+build
+*.uf2
+*.elf
+*.bin
+*.hex
+*.o
+compile_commands.json
+!.vscode/*
+./src/*  #i have dangerously close to no idea whats happening there and i am too embarrassed to commit this right now

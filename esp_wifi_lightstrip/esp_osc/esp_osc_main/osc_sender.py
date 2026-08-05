@@ -16,16 +16,11 @@ if __name__ == "__main__":
   client = udp_client.SimpleUDPClient(args.ip, args.port, 10)
 
 # while(True):
-#     client.send_message("/strip/0/preset/1", 0)
-#     print("sent1")
-#     time.sleep(1)
-#     client.send_message("/strip/0/preset/0", 0)
-#     print("sent1")
-#     time.sleep(1)
-    # client.send_message("/strip/preset/1", 0)
-    # print("sent1")
+#     client.send_message("/strip/0/preset/11/1", 0)
 
-client.send_message("/strip/0/preset/0", 0)
-# time.sleep(0.1)
-# client.send_message("/strip/1/preset/11/1", 0)
+client.send_message("/strip/0/preset/11/20", 0)
+time.sleep(0.1)
+# client.send_message("/strip/0/preset/1", 0)
+# time.sleep(1)
+
 

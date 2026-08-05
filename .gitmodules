@@ -1,0 +1,3 @@
+[submodule "wired_net/pico-sdk"]
+	path = wired_net/pico-sdk
+	url = https://github.com/raspberrypi/pico-sdk.git
